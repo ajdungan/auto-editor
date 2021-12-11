@@ -1,58 +1,72 @@
 '''preview.py'''
 
 # Internal Libraries
-import os
 from datetime import timedelta
 
 # Included Libraries
-from auto_editor.usefulFunctions import getNewLength
+from auto_editor.utils.func import get_new_length
 
-def printTimeFrame(title: str, frames, fps: float):
+def display_length(secs):
+    # display length
+    if(secs < 0):
+        return '-' + str(timedelta(seconds=round(abs(secs))))
+    return str(timedelta(seconds=round(secs)))
+
+def time_frame(title, frames, fps):
     in_sec = round(frames / fps, 1)
-    fps = round(fps)
-    if(in_sec < 1):
-        minutes = '{}/{} frames'.format(int(frames), fps)
-    else:
-        minutes = timedelta(seconds=round(in_sec))
+    minutes = timedelta(seconds=round(in_sec))
     print('{}: {} secs ({})'.format(title, in_sec, minutes))
 
 
-def preview(myInput, chunks: list, speeds: list, fps: float, audioFile, log):
-    old_time = chunks[len(chunks)-1][1]
-    print('')
-    printTimeFrame('Old length', old_time, fps)
+def preview(inp, chunks, speeds, log):
+    fps = 30 if inp.fps is None else float(inp.fps)
 
-    new_length = getNewLength(chunks, speeds, fps)
-    printTimeFrame('New length', new_length * fps, fps)
-    print('')
+    log.conwrite('')
+
+    old_length = chunks[-1][1] / fps
+    new_length = get_new_length(chunks, speeds, fps)
+
+    diff = new_length - old_length
+
+    print('\nlength:\n - change: ({}) 100% -> ({}) {}%\n - diff: ({}) {}%'.format(
+        display_length(old_length),
+        display_length(new_length),
+        round((new_length / old_length) * 100, 2),
+        display_length(diff),
+        round((diff / old_length) * 100, 2),
+    ))
 
     clips = 0
     cuts = 0
-    cutL = []
-    clipLengths = []
+    cut_lens = []
+    clip_lens = []
     for chunk in chunks:
         state = chunk[2]
         if(speeds[state] != 99999):
             clips += 1
             leng = (chunk[1] - chunk[0]) / speeds[state]
-            clipLengths.append(leng)
+            clip_lens.append(leng)
         else:
             cuts += 1
             leng = chunk[1] - chunk[0]
-            cutL.append(leng)
+            cut_lens.append(leng)
 
-    print('Number of clips:', clips)
-    printTimeFrame('Smallest clip length', min(clipLengths), fps)
-    printTimeFrame('Largest clip length', max(clipLengths), fps)
-    printTimeFrame('Average clip length', sum(clipLengths) / len(clipLengths), fps)
-    print('\nNumber of cuts:', cuts)
+    print('clips: {}'.format(clips))
+    if(len(clip_lens) == 1):
+        time_frame(' - clip length', clip_lens[0], fps)
+    else:
+        time_frame(' - smallest', min(clip_lens), fps)
+        time_frame(' - largest', max(clip_lens), fps)
+        time_frame(' - average', sum(clip_lens) / len(clip_lens), fps)
+        print('cuts: {}'.format(cuts))
 
-    if(cutL != []):
-        printTimeFrame('Smallest cut length', min(cutL), fps)
-        printTimeFrame('Largest cut length', max(cutL), fps)
-        printTimeFrame('Average cut length', sum(cutL) / len(cutL), fps)
+    if(cut_lens != []):
+        if(len(cut_lens) == 1):
+            time_frame(' - cut length', cut_lens[0], fps)
+        else:
+            time_frame(' - smallest', min(cut_lens), fps)
+            time_frame(' - largest', max(cut_lens), fps)
+            time_frame(' - average', sum(cut_lens) / len(cut_lens), fps)
         print('')
 
-    if(not audioFile):
-        print('Video framerate:', fps)
-    log.debug(f'Chunks:\n{chunks}')
+    log.debug('Chunks: {}'.format(chunks))
